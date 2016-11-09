@@ -1,0 +1,1088 @@
+\documentclass[letter]{jpconf}
+
+\usepackage{xcolor}
+
+
+    
+    
+    
+\usepackage{listings}
+\usepackage{float}
+
+\usepackage{caption}
+\DeclareCaptionFont{white}{\color{white}}
+\DeclareCaptionFormat{listing}{%
+\parbox{\textwidth}{\colorbox{gray}{\parbox{\textwidth}{#1#2#3}}\vskip-4pt}}
+\captionsetup[lstlisting]{format=listing,labelfont=white,textfont=white}
+\lstset{frame=lrb,xleftmargin=\fboxsep,xrightmargin=-\fboxsep}
+
+\renewcommand{\abstractname}{Resumen}
+\renewcommand{\lstlistingname}{Listado}
+\renewcommand{\tablename}{Tabla}
+
+\makeatletter
+\newcommand{\verbatimfont}[1]{\def\verbatim@font{#1}}%
+\makeatother
+\usepackage{titlesec}
+
+\titleformat{\chapter}
+       {\normalfont\fontfamily{phv}\fontsize{18}{21}\bfseries}{\thechapter}{1em}{}
+
+\titleformat{\section}
+       {\normalfont\fontfamily{phv}\fontsize{14}{19}\bfseries}{\thesection}{1em}{}
+
+\titleformat{\subsection}
+       {\normalfont\fontfamily{phv}\fontsize{12}{17}\bfseries\itshape}{\thesubsection}{1em}{}
+
+
+\begin{document}
+ \vspace*{-45mm}
+\title{Introducci\'on al C\'omputo en Paralelo en el Laboratorio Nacional de Superc\'omputo del Sureste de M\'exico: Uso de MPI }
+\author{Poulette Mayoral Orueta y Luis M. Villase\~nor Cendejas}
+
+\address{Benem\'erita Universidad Aut\'onoma de Puebla, Puebla, Mexico}
+
+\ead{lvillasen@gmail.com}
+\author{\textbf{9 de Noviembre de 2016}}
+\section{Introducci\'on}
+
+Una modelo popular  para hacer c\'omputo en paralelo en un cl\'uster consiste en usar MPI~\cite{mpi} (del ingl\'es Message Passing Interfase). A diferencia de otros modelos como OpenMP~\cite{openmp}, MPI tiene la ventaja de que se aplica por igual a sistemas de memoria compartida, es decir procesos que corren en paralelo dentro de un mismo nodo, que a sistemas de memoria distribuida, es decir procesos que corren en paralelo en varios nodos dentro de un cl\'uster o en varias computadoras dentro de una red. 
+
+En un cl\'uster de varios nodos, o en uno de varias computadoras dentro de una red, uno puede optar por hacer c\'omputo paralelo basado \'unicamente en MPI o mediante un modelo mixto OpenMP/MP. Ambos modelos tiene  ventajas y desventajas que se pueden consultar por ejemplo en~\cite{openmpvsmpi}. 
+
+En este tutorial vamos a describir, desde un punto de vista pr\'actico, el uso de MPI en el cl\'uster del Laboratorio Nacional de Superc\'omputo del Sureste de M\'exico (LNS). Ilustrando con ejemplos el uso de las principales funciones de MPI en cuatro lenguajes: C, Fortran, Julia y Python, de modo que cualquier usuario puede correr estos ejemplos siguiendo las instrucciones detalladas que se dan a continuaci\'on y de ese modo adquirir en poco tiempo experiencia que le puede permitir aplicar MPI a sus programas de c\'omputo secuenciales  para obtener un mayor beneficio del LNS.
+
+MPI consta de alrededor de 125 funciones, sin embargo basta con manejar el uso de unas pocas para resolver la mayor\'ia de los problemas de paralelizaci\'on. Por esta raz\'on, en este tutorial   ilustramos con ejemplos el uso de las funciones m\'as usadas que son las siguientes:
+\begin{itemize} 
+\item MPI\_INIT I
+\item MPI\_COMM\_RANK  
+\item MPI\_COMM\_SIZE 
+\item MPI\_GET\_PROCESSOR\_NAME
+\item MPI\_Reduce 
+\item MPI\_Send 
+\item MPI\_Recv 
+\item MPI\_Barrier
+\item MPI\_FINALIZE 
+\end{itemize} 
+
+El comando b\'asico de MPI para correr un programa en paralelo a trav\'es de N procesos  es
+\color{blue}
+\begin{verbatim}
+mpirun -np N programa-a-ejecutar
+\end{verbatim}
+\color{black}
+Es importante notar que N puede ser cualquier n\'umero, ya que varios procesos se pueden correr en paralelo a\'un en un \'unico procesador.
+Por otro lado,  los procesadores modernos consisten de varios n\'ucleos. Para obtener el n\'umero de n\'ucleos de una computadora, o de un nodo en un cl\'uster, se puede usar el comando de Linux 
+\color{blue}
+\begin{verbatim}
+nproc
+\end{verbatim}
+\color{black}
+Por ejemplo si en el cl\'uster del LNS nos conectamos al nodo $master1$ con $ssh$ y ah\'i tecleamos \texttt{nproc} obtenemos 32, mientras que si nos conectamos al nodo \texttt{cn0103-2} vemos que tiene 24 n\'ucleos. 
+
+Para obtener el m\'aximo rendimiento de c\'omputo en paralelo de una computadora, o de un nodo, hay que usar el comando  \texttt{mpirun}  con N igual al n\'umero de n\'ucleos.
+En el caso de tener acceso a un cl\'uster, como el del LNS, podemos correr un programa en los procesadores de varios nodos, para tal fin basta con usar la opci\'on  \texttt{machinefile} 
+a trav\'es del comando
+
+\color{blue}
+\begin{verbatim}
+mpirun -np N -machinefile lista-de-nodos programa-a-ejecutar
+\end{verbatim}
+\color{black}
+donde el archivo de texto   \texttt{lista-de-nodos} contiene los nombres de los nodos en cuesti\'on. El sistema operativo se encarga, a trav\'es de 
+la implementaci\'on de MPI, de distribuir la ejecuci\'on de los programas en forma \'optima entre los n\'ucleos que contengan los nodos listados en el archivo \texttt{lista-de-nodos}.
+
+Por ejemplo para correr un programa en los 72 n\'ucleos de los nodos cn0103-1.lns.buap.mx, cn0103-2.lns.buap.mx y cn0103-3.lns.buap.mx hacemos lo siguiente:
+\color{blue}
+\begin{verbatim}
+cat > nodos
+cn0103-2
+cn0103-3
+cn0103-4 
+crtl c
+\end{verbatim}
+\color{black}
+para crear el archivo  \texttt{nodos} y posteriormente ejecutamos el comando
+\color{blue}
+\begin{verbatim}
+mpirun -np 72 -machinefile nodos programa-a-ejecutar
+\end{verbatim}
+\color{black}
+En la Secci\'on~\ref{subseccionC} mostramos un ejemplo concreto.
+
+
+
+El comando  \texttt{mpirun} se puede usar en el LNS solo para pruebas r\'apidas, para correr un programa que tarde m\'as de unos segundos se requiere usar el manejador de cargas de trabajos SLURM~\cite{slurm,slurm1}. En el Listado~\ref{slurm}  se ilustra un archivo de comandos b\'asico para el uso de MPI con SLURM. 
+En la Subsecci\'on~\ref{subseccionC} mostramos en detalle c\'omo ejecutar este archivo que se llama Ejemplo-SLURM.sh y su resultado.
+
+\begin{lstlisting}[float,floatplacement=H,label=slurm,caption=Ejemplo de un archivo de comandos b\'asico para usar MPI con SLURM.]
+#!/bin/bash
+#SBATCH --job-name mpi-simple
+#SBATCH --nodes 3
+#SBATCH --ntasks-per-node 24
+#SBATCH --time 00:10:00
+#SBATCH --output mpi-simple.out
+module load tools/intel/impi/5.0.2.044
+mpirun mpi-simple
+\end{lstlisting}
+
+Finalmente, cuando se usa MPI es muy importante balancear las cargas de los procesos que corren en paralelo. Esto se debe a que el tiempo de ejecuci\'on est\'a limitado por el tiempo que tarda en correr el proceso que tiene mayor carga de c\'omputo.
+
+Todos los programas que se listan en este tutorial se pueden descargar del repositorio github~\cite{github} usando el comando siguiente
+\color{blue}
+\begin{verbatim}
+git clone https://github.com/lvillasen/TutorialMPI
+\end{verbatim}
+\color{black}
+
+
+
+
+
+%%%\belowcaptionskip=-10pt
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% C
+
+
+\section{Uso de MPI en C en el LNS}
+
+Como prerrequisito para usar MPI con C en el LNS debemos cargar los m\'odulos siguientes:
+\color{blue}
+\begin{verbatim}
+module load tools/intel/impi/5.0.2.044
+module load compilers/intel/parallel_studio_xe_2015/15.0.1
+\end{verbatim}
+\color{black}
+Es importante no tener cargado ning\'un otro m\'odulo de mpi que pueda interferir con estas librer\'ias. Para ver qu\'e m\'odulos est\'an disponibles se usa el comando
+\color{blue}
+\begin{verbatim}
+module avail
+\end{verbatim}
+\color{black}
+y para ver qu\'e m\'odulos est\'an cargados se usa el comando
+\color{blue}
+\begin{verbatim}
+module list
+\end{verbatim}
+\color{black}
+si es necesario, un m\'odulo que est\'e cargado, por ejemplo el  \texttt{tools/openmpi/intel/1.8.4}, se puede remover con el comando
+\color{blue}
+\begin{verbatim}
+module unload tools/openmpi/intel/1.8.4
+\end{verbatim}
+\color{black}
+
+Para que los siguientes ejemplos en C compilen y se ejecuten exitosamente es necesario que el resultado del comando 
+\color{blue}
+\begin{verbatim}
+module list
+\end{verbatim}
+\color{black}
+incluya en el listado de m\'odulos activos al menos los siguientes:
+\color{blue}
+\begin{verbatim}
+Currently Loaded Modulefiles:
+  1) compilers/intel/parallel_studio_xe_2015/15.0.1   
+  2) tools/intel/impi/5.0.2.044
+\end{verbatim}
+\color{black}
+
+
+
+
+\subsection{\label{subseccionC}\textbf{Ejemplo b\'asico de uso de MPI en C en el LNS}}
+
+El primer ejemplo se llama mpi-simple.c y se muestra en el Listado~\ref{simple-c}.
+\begin{lstlisting}[float,floatplacement=H,label=simple-c,caption=Listado del programa  \texttt{mpi-simple.c} en C]
+  #include <stdio.h>
+   #include <mpi.h>
+   main(int argc, char **argv)
+   {
+      int ierr, rank, size;
+    char hostname[30]; 
+      ierr = MPI_Init(&argc, &argv);
+      ierr = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+      ierr = MPI_Comm_size(MPI_COMM_WORLD, &size);
+      gethostname(hostname,30);
+     int a= rank;
+      printf("a=%i en  proceso %i de un total de %i en %s\n", 
+         a,rank, size,hostname);
+      ierr = MPI_Finalize();
+   }
+  \end{lstlisting}
+
+En este ejemplo se ilustra el uso de las funciones siguientes:
+\begin{itemize} 
+\item int MPI\_Init(\&argc, \&argv)
+\item int MPI\_Comm\_rank(MPI\_COMM\_WORLD, \&rank)
+\item int MPI\_Comm\_size(MPI\_COMM\_WORLD, \&size)
+\item int MPI\_Finalize()
+\end{itemize} 
+
+La primera funci\'on inicia MPI, la segunda obtiene el n\'umero de proceso y lo guarda en la variable $rank$, la tercera obtiene el n\'umero de procesos que se corren simult\'aneamente y lo guarda en la variable $size$. La cuarta funci\'on finaliza MPI. Todas las funciones arrojan como reultado un entero que vale 1 si la ejecuci\'on de la funci\'on se realiz\'o con \'exito.
+
+
+Este c\'odigo se compila con el comando
+\color{blue}
+\begin{verbatim}
+mpicc mpi-simple.c -o mpi-simple
+\end{verbatim}
+\color{black}
+y se corre con el comando siguiente:
+\color{blue}
+\begin{verbatim}
+mpirun -n 4 mpi-simple
+\end{verbatim}
+\color{black}
+Este c\'odigo produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+a=1 en  proceso 1 de un total de 4
+a=2 en  proceso 2 de un total de 4
+a=3 en  proceso 3 de un total de 4
+a=0 en  proceso 0 de un total de 4
+\end{verbatim}
+\color{black}
+
+A manera de ejemplo del poder de MPI para trabajar en sistemas de memoria distribuida, este mismo programa lo podemos correr en paralelo en los 72 n\'ucleos de los nodos 
+ \texttt{cn0103-2, cn0103-3 y cn0103-4} que previamente guardamos en el archivo  \texttt{nodos}. Vemos que en efecto el comando
+\color{blue}
+\begin{verbatim}
+cat nodos
+\end{verbatim}
+\color{black}
+nos arroja
+\color{brown}
+\begin{verbatim}
+cn0103-2 
+cn0103-3 
+cn0103-4
+\end{verbatim}
+\color{black}
+Enseguida ejecutamos este programa con el comando
+\color{blue}
+\begin{verbatim}
+mpirun -np 72 -machinefile nodos  mpi-simple
+\end{verbatim}
+\color{black}
+para producir las 72 l\'ineas siguientes:
+\color{brown}
+\begin{verbatim}
+   a=11 en proceso 11 de 72 en cn0103-4.lns.buap.mx
+   a=14 en proceso 14 de 72 en cn0103-4.lns.buap.mx
+.....
+   a=36 en proceso 36 de 72 en cn0103-2.lns.buap.mx
+   a= 0 en proceso  0 de 72 en cn0103-2.lns.buap.mx
+\end{verbatim}
+\color{black}
+que indican que en efecto el programa se ejecut\'o simult\'aneamente a trav\'es de 72 procesos distribuidos uniformemente en los 3 nodos indicados. 
+
+Este mismo resultado lo podemos obtener ejecutando  \texttt{mpirun} a trav\'es de SLURM. Para esto ejecutamos el comando
+\color{brown}
+\begin{verbatim}
+sbatch Ejemplo-SLURM.sh
+\end{verbatim}
+\color{black}
+donde el archivo Ejemplo-SLURM.sh se muestra en el Listado~\ref{slurm}. Para ver el estado de este trabajo usamos el comando
+\color{blue}
+\begin{verbatim}
+squeue
+\end{verbatim}
+\color{black}
+Despu\'es de ejecutarse el resultado se muestra en el
+archivo \texttt{mpi-simple.out} de modo que si hacemos
+\color{blue}
+\begin{verbatim}
+cat mpi-simple.out
+\end{verbatim}
+\color{black}
+obtenemos
+\color{brown}
+\begin{verbatim}
+   a=48 en proceso 48 de 72 en cn0211-2.lns.buap.mx
+   a=24 en proceso 24 de 72 en cn0211-1.lns.buap.mx
+   ....
+   a=16 en proceso 16 de 72 en cn0210-4.lns.buap.mx
+   a=60 en proceso 60 de 72 en cn0211-2.lns.buap.mx
+\end{verbatim}
+\color{black}
+es decir que obtenemos el mismo resultado que obtuvimos previamente cuando corrimos \texttt{mpirun} en forma directa.
+
+
+
+
+\subsection{Ejemplo de uso de la funci\'on $reduce$ de MPI en C en el LNS}
+
+En el siguiente ejemplo ilustramos el uso de la 
+ funci\'on $reduce$ que 
+est\'a definida en C por
+\color{black}
+\begin{verbatim}
+int MPI_Reduce(
+    void* send_data,
+    void* recv_data,
+    int cuenta,
+    MPI_Datatype tipo,
+    MPI_Op op,
+    int root,
+    MPI_Comm communicator)
+\end{verbatim}
+\color{black}
+donde $cuenta$ es el n\'umero de variables del tipo  $MPI\_Datatype$ que se van a sumar. La variable \texttt{MPI\_Datatype} indica el tipo de datos cuya correspondencia con el tipo de datos en C se muestra en la Tabla~\ref{tiposC}.  La explicaci\'on de lo qu\'e significan las dem\'as variables se da a trav\'es de un 
+ejemplo del uso de esta funci\'on.
+
+
+\begin{table}[htbp]
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\hline
+\hline \hline
+\multicolumn{1}{c}{\textbf{Tipo en MPI}} & 
+  \multicolumn{1}{c}{\textbf{Tipo en C}} & 
+  \multicolumn{1}{c}{\textbf{N\'umero de Bits}}\\
+ \hline \hline
+MPI\_CHAR &  car\'acter & 8 \\ \hline
+MPI\_SHORT & entero corto con signo & 8\\ \hline
+MPI\_INT &  entero    & 16\\ \hline
+MPI\_LONG &  entero largo  & 32\\ \hline
+MPI\_UNSIGNED\_CHAR &  car\'acter sin signo  & 8\\ \hline
+MPI\_UNSIGNED\_SHORT & entero corto sin signo  & 8 \\ \hline
+MPI\_UNSIGNED & entero sin signo & 16\\ \hline
+MPI\_UNSIGNED\_LONG & entero largo sin signo  & 32\\ \hline
+MPI\_FLOAT & punto flotante  & 32\\ \hline
+MPI\_DOUBLE & punto flotante doble  & 64\\ \hline
+MPI\_LONG\_DOUBLE & punto flotante largo doble  & 128\\ \hline
+MPI\_BYTE & car\'acter sin signo  & 8 \\ \hline
+MPI\_PACKED & (ninguno)  & \\ \hline
+
+\end{tabular}
+\caption{\label{tiposC} Correspondencia entre tipos de variables entre MPI y C.}
+\end{center}
+\end{table}
+
+En este ejemplo se ilustra la manera de  sumar tanto n\'umeros escalares como arreglos de n\'umeros. El c\'odigo respectivo de llama  \texttt{mpi-reduce.c},  
+y se muestra en el Listado~\ref{reduce-c}.
+\begin{lstlisting}[float,floatplacement=H,label=reduce-c,caption=Listado del programa  \texttt{mpi-reduce.c} en C]
+#include <mpi.h>
+#include <stdio.h>
+int main(int argc, char** argv){
+int size, rank, ierr;
+int a, a_sum,i;
+MPI_Init(&argc,&argv);
+MPI_Comm_size(MPI_COMM_WORLD,&size);
+MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+a=rank;
+int A[3] = { rank,rank,rank};
+int A_sum[3] = { 0,0,0};
+  printf("En proceso %i a = %i \n",rank,a);
+     MPI_Reduce(&a, &a_sum,1,MPI_INT,MPI_SUM,0,MPI_COMM_WORLD);
+     MPI_Reduce(&A, &A_sum,3,MPI_INT,MPI_SUM,0,MPI_COMM_WORLD);
+if( rank == 0 ){
+  printf("La suma de a es = %i \n",a_sum);
+  printf("La suma de A es [");
+for( i = 0; i < 3; i++) {
+        printf("%d ", A_sum[i]);
+    }
+printf("]\n");}
+ ierr = MPI_Finalize();}
+ \end{lstlisting}
+ 
+ En el caso del arreglo A hacemos de suma de 3 elementos del arreglo. El destino de la suma de $a$ y del arreglo $A$ se escoge como el proceso $0$.
+
+
+
+Este c\'odigo se compila con el comando
+\color{blue}
+\begin{verbatim}
+mpicc mpi-reduce.c -o mpi-reduce
+\end{verbatim}
+\color{black}
+Una vez compilado se corre con el comando siguiente:\color{blue}
+\begin{verbatim}
+mpirun -n 4  mpi-reduce
+\end{verbatim}
+\color{black}
+y produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+En proceso 2 a = 2 
+En proceso 3 a = 3 
+En proceso 0 a = 0 
+En proceso 1 a = 1 
+Suma de a de todos los procesos = 6 
+Suma de A de todos los procesos = [6 6 6 ]
+\end{verbatim}
+\color{black}
+
+
+\subsection{Ejemplo de uso de las funciones $send$ y $receive$ de MPI en C en el LNS}
+
+La funci\'on $send$ est\'a definida en C por
+\color{black}
+\begin{verbatim}
+
+int MPI_Send(
+  void *data,
+  int cuenta,
+  MPI_Datatype tipo,
+  int dest,
+  int etiqueta,
+  MPI_Comm comm
+);
+\end{verbatim}
+\color{black}
+
+mientras que la funci\'on $receive$ est\'a definida por
+\color{black}
+\begin{verbatim}
+
+MPI_Recv(
+    void* data,
+    int cuenta,
+    MPI_Datatype tipo,
+    int source,
+    int etiqueta,
+    MPI_Comm communicator,
+    MPI_Status* status)
+\end{verbatim}
+\color{black}
+
+A continuaci\'on ilustramos el uso de las funciones $send$ y $receive$ en C con un ejemplo . El c\'odigo respectivo se llama  \texttt{mpi-send-rcv.c} y se muestra en el Listado~\ref{send-c}.
+\begin{lstlisting}[float,floatplacement=H,label=send-c,caption=Listado del programa \texttt{mpi-send-rcv.c} en C]
+#include <mpi.h>
+#include <stdio.h>
+int main(int argc, char** argv){
+int size, rank, rc;
+MPI_Init(&argc,&argv);
+MPI_Comm_size(MPI_COMM_WORLD,&size);
+MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+MPI_Status Stat;
+int i,a, a_sum;
+if( rank == 0 ){
+int datos11[3] = { 11,11,11};
+int datos12[3] = { 12,12,12};
+rc = MPI_Send(&datos11, 3, MPI_INT, 1, 11, MPI_COMM_WORLD);
+rc = MPI_Send(&datos12, 3, MPI_INT, 1, 12, MPI_COMM_WORLD);
+}
+if( rank == 1 ){
+int datos11_r[3] = { 0,0,0};
+int datos12_r[3] = { 0,0,0};
+rc = MPI_Recv(&datos11_r, 3, MPI_INT, 0, 11, MPI_COMM_WORLD,&Stat );
+rc = MPI_Recv(&datos12_r, 3, MPI_INT, 0, 12, MPI_COMM_WORLD,&Stat);
+   printf("Datos recibidos en proceso %i con etiqueta 11:\n", rank);
+for(i = 0; i < 3; i++) {
+   printf("%d ", datos11_r[i]);
+    }
+   printf("\nDatos recibidos en proceso %i con etiqueta 12:\n", rank);
+for(i = 0; i < 3; i++) {
+   printf("%d ", datos12_r[i]);
+    }
+}
+rc = MPI_Finalize();}
+\end{lstlisting}
+
+
+Este c\'odigo se compila con el comando
+\color{blue}
+\begin{verbatim}
+mpicc mpi-send-rcv.c -o mpi-send-rcv
+\end{verbatim}
+\color{black}
+
+Una vez compilado se corre con el comando siguiente:
+\color{blue}
+\begin{verbatim}
+mpirun -n 4  mpi-send-rcv
+\end{verbatim}
+\color{black}
+y produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+Datos recibidos en proceso 1 con etiqueta 11:
+ 11 11 11 
+Datos recibidos en proceso 1 con etiqueta 12:
+ 12 12 12
+\end{verbatim}
+\color{black}
+
+\subsection{Ejemplo de paralelizaci\'on de un programa en C}
+
+A manera de ejemplo ilustrativo del uso de MPI usamos el m\'etodo de integraci\'on Monte Carlo para calcular el valor de $\pi$. El programa mostrado en el Listado~\ref{pi} genera pares de n\'umeros aleatorios entre 0 y 1 y cuenta el n\'umero de puntos que caen dentro de un c\'irculo de radio unitario en el primer cuadrante. Dado los n\'umeros aleatorios son uniformes en todo el primer cuadrante, la fracci\'on de los pares que est\'an dentro del c\'iculo es proporcional a el \'area del c\'irculo unitario que se intercepta con el primer cuadrante, es decir, esta fracci\'on es proporcional a $\pi/4$.
+
+Este programa se compila con el comando
+\color{blue}
+\begin{verbatim}
+gcc pi.c -o pi -lm
+\end{verbatim}
+\color{black}
+y al correrlo con el comando 
+\color{blue}
+\begin{verbatim}
+pi
+\end{verbatim}
+\color{black}
+produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+Numero de puntos = 100000000 
+Numero de puntos dentro del circulo = 78542448 +- 8862.42 
+Pi = 4 N_dentro/N_total= 3.1417 +- 0.000354497 
+\end{verbatim}
+\color{black}
+
+Este problema es del tipo conocido como "trivialmente paralelizable" ya que para acelerarlo basta usar MPI para correr varios procesos iguales en diferentes n\'ucleos, y 
+hacer la suma mediante la funci\'on $reduce$. 
+
+\textbf{Ejercicio.}  Modificar el programa del Listado~\ref{pi}  para paralelizar el c\'alculo de $\pi$ con MPI y compruebar su correcto funcionamiento.
+
+
+\begin{lstlisting}[float,floatplacement=H,label=pi,caption=Listado del programa  secuencial que calcula $\pi$ en C.]
+/* Programa para calcular Pi usando el metodo Monte Carlo */
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
+int main()
+{
+   int N=100000000; int i,count=0;
+   double x,y,z,pi;
+   srand(1);
+   for ( i=0; i<N; i++) {
+      x = (double)rand()/RAND_MAX;
+      y = (double)rand()/RAND_MAX;
+      z = x*x+y*y;
+      if (z<=1) count++;
+      }
+   printf ("Numero de puntos = %d \n",N);
+   printf ("Numero de puntos dentro del circulo \
+   = %d +- %g \n",count,sqrt(count));
+   printf ("Pi = 4 N_dentro/N_total= %g +- %g \n"\
+   ,(double)count/N*4,sqrt(count)/N*4);
+}
+\end{lstlisting}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Fortran
+
+\section{\label{seccionFortran} Uso de MPI en Fortran en el LNS}
+
+Como prerrequisito para usar MPI con Fortran en el LNS debemos cargar los m\'odulos siguientes:
+\color{blue}
+\begin{verbatim}
+module load compilers/intel/parallel_studio_xe_2015/15.0.1
+module load tools/openmpi/intel/1.8.4
+\end{verbatim}
+\color{black}
+Es importante no tener cargado ning\'un otro m\'odulo de openmp que pueda interferir con estas librer\'ias, por ejemplo asegurarse que no est\'e cargado el m\'odulo 
+\texttt{tools/openmpi/intel/1.8.4}.
+\subsection{Ejemplo b\'asico de uso de MPI en Fortran en el LNS}
+
+El primer ejemplo se llama mpi-simple.c y se muestra en el Listado~\ref{simple-fortran}.
+\begin{lstlisting}[float,floatplacement=H,label=simple-fortran,caption=Listado del programa  \texttt{mpi-simple.f} en Fortran]
+      Program simple
+      include 'mpif.h'
+      integer size,rank,ie,a,len
+      character(MPI_MAX_PROCESSOR_NAME) host
+      len=20
+      call MPI_INIT(ie)
+      call MPI_COMM_SIZE(MPI_COMM_WORLD, size, ie)
+      call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ie)
+      call MPI_GET_PROCESSOR_NAME(host, len, ie)
+      a=rank
+      WRITE(*,10) 'a=', a,' en proceso ',
+     &rank,' de ', size,' en ',host
+  10  Format(1x,A4,I2,A12,I2,A4,I2,A4,A20)
+      call MPI_FINALIZE(ie)
+      end
+  \end{lstlisting}
+
+
+Este c\'odigo, escrito en Fortran 90, se compila con el comando
+\color{blue}
+\begin{verbatim}
+mpif90 mpi-simple.f -o mpi-simple
+\end{verbatim}
+\color{black}
+y se corre con el comando siguiente:
+\color{blue}
+\begin{verbatim}
+mpirun -n 4 mpi-simple
+\end{verbatim}
+\color{black}
+Este c\'odigo produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+   a= 3 en proceso  3 de  4 en master1.lns.buap.mx 
+   a= 1 en proceso  1 de  4 en master1.lns.buap.mx 
+   a= 0 en proceso  0 de  4 en master1.lns.buap.mx 
+   a= 2 en proceso  2 de  4 en master1.lns.buap.mx 
+\end{verbatim}
+\color{black}
+
+
+\begin{table}[htbp]
+\begin{center}
+\begin{tabular}{|l|c|c|}
+\hline
+\hline
+\hline \hline
+\multicolumn{1}{c}{\textbf{Tipo en MPI}} & 
+  \multicolumn{1}{c}{\textbf{Tipo en Fortran}} \\
+ \hline \hline
+MPI\_INTEGER & entero \\ \hline
+MPI\_REAL & real \\ \hline
+MPI\_DOUBLE PRECISION &  precisi\'on doble \\ \hline
+MPI\_COMPLEX & complejo \\ \hline
+MPI\_LOGICAL & l\'ogico \\ \hline
+MPI\_CHARACTER & car\'acter \\ \hline
+MPI\_BYTE & (ninguno) \\ \hline
+MPI\_PACKED & (ninguno) \\ \hline
+\end{tabular}
+\caption{\label{tiposFortran} Correspondencia entre tipos de variables entre MPI y Fortran en forma general. N\'otese que MPI para Fortran 90 cuenta con un conjunto m\'as amplio de tipos~\cite{tipos-fortran}. }
+\end{center}
+\end{table}
+
+\subsection{Ejemplo de uso de la funci\'on $reduce$ de MPI en Fortran en el LNS}
+
+La funci\'on $reduce$ est\'a definida en Fortran por
+\color{black}
+\begin{verbatim}
+call MPI_Reduce(sendbuf, recvbuf, cuenta, tipo, operacion, raiz, comm, ierr) 
+\end{verbatim}
+\color{black}
+La correspondencia entre los tipos de variables en MPI y en Fortran est\'a descrita en forma gen\'erica en la Tabla~\ref{tiposFortran}.
+
+A continuaci\'on mostramos un ejemplo del uso de la funci\'on $reduce$ en Fortran. El c\'odigo respectivo de llama  \texttt{mpi-reduce.f},  y se muestra en el Listado~\ref{reduce-fortran}.
+\begin{lstlisting}[float,floatplacement=H,label=reduce-fortran,caption=Listado del programa  \texttt{mpi-reduce.f} en Fortran]
+       Program reduce
+       include 'mpif.h'
+       integer size, rank, count,a,a_sum, etiqueta, ierr
+       integer stat(MPI_STATUS_SIZE)   
+       call MPI_INIT(ierr)
+       call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
+       call MPI_COMM_SIZE(MPI_COMM_WORLD, size, ierr)
+       a=rank
+       write(*,10) 'En proceso ', rank, ' a=',a
+   10  Format(1x,A15,2x,I2, A4,I2)
+       call MPI_REDUCE(a,a_sum,1,MPI_INTEGER,
+     & MPI_SUM,0,MPI_COMM_WORLD,ierr)
+       if (rank .eq. 0) then
+       write(*,20) 'La suma de a es ',a_sum
+   20  Format(1x,A20,2x,I2)
+       endif
+       call MPI_FINALIZE(ierr)
+       end
+ \end{lstlisting}
+
+
+Este c\'odigo se compila con el comando
+\color{blue}
+\begin{verbatim}
+mpif90 mpi-reduce.f -o mpi-reduce
+\end{verbatim}
+\color{black}
+Una vez compilado se corre con el comando siguiente:
+\color{blue}
+\begin{verbatim}
+mpirun -n 4  mpi-reduce
+\end{verbatim}
+\color{black}
+y produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+     En proceso    3  a= 3
+     En proceso    0  a= 0
+     La suma de a es    6
+     En proceso    1  a= 1
+     En proceso    2  a= 2
+ \end{verbatim}
+\color{black}
+
+
+\subsection{Ejemplo de uso de las funciones $send$ y $receive$ de MPI en Fortran en el LNS}
+
+La funci\'on $send$ est\'a definida en Fortran por
+\color{black}
+\begin{verbatim}
+CALL MPI_SEND(bufer,cuenta,tipo,destino,etiqueta,MPI_COMM_WORLD,ierr)
+\end{verbatim}
+\color{black}
+
+mientras que la funci\'on $receive$ est\'a definida por
+\color{black}
+\begin{verbatim}
+Call MPI_Recv(bufer, cuenta, tipo,fuente,etiqueta, MPI_COMM_WORLD, estado,ierr)
+\end{verbatim}
+\color{black}
+
+
+A continuaci\'on ilustramos el uso de estas funciones $send$ y $receive$ en Fortran con un ejemplo . El c\'odigo respectivo se llama  \texttt{mpi-send-rcv.f} y se muestra en el Listado~\ref{send-fortran}.
+\begin{lstlisting}[float,floatplacement=H,label=send-fortran,caption=Listado del programa \texttt{mpi-send-rcv.f} en Fortran]
+       Program send y receive
+       include 'mpif.h'
+       integer size, rank, count,o,in, etiqueta, ie
+       integer stat(MPI_STATUS_SIZE)   
+       INTEGER, DIMENSION(0:2) :: datos11,datos12,data11_r,data12_r
+       datos11 = (/11,11,11/)
+       datos12 = (/12,12,12/)
+       call MPI_INIT(ierr)
+       call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ie)
+       call MPI_COMM_SIZE(MPI_COMM_WORLD, size, ie)
+       if (rank .eq. 0) then
+       call MPI_SEND(datos11,3, MPI_INTEGER,1,11,MPI_COMM_WORLD,ie)
+       call MPI_SEND(datos12, 3, MPI_INTEGER,1,12,MPI_COMM_WORLD,ie)
+       write(*,*) 'Datos enviados desde proceso 0 con etiqueta 11 ='
+     & ,datos11
+       write(*,*) 'Datos enviados desde proceso 0 con etiqueta 12 ='
+     & ,datos12
+       endif
+       if (rank .eq. 1) then
+       data11_r = (/0,0,0/)
+       data12_r = (/0,0,0/)
+       call MPI_RECV(data11_r,3,MPI_INTEGER,
+     & 0,11,MPI_COMM_WORLD,stat,ie)
+       call MPI_RECV(data12_r,3,MPI_INTEGER,
+     & 0,12,MPI_COMM_WORLD,stat,ie)
+       write(*,*) 'Datos recibidos en proceso 1 con etiqueta 11 ='
+     & ,data11_r
+       write(*,*) 'Datos recibidos en proceso 1 con etiqueta 12 ='
+     & ,data12_r
+       endif
+       call MPI_FINALIZE(ie)
+       end
+\end{lstlisting}
+
+
+Este c\'odigo se compila con el comando
+\color{blue}
+\begin{verbatim}
+mpif90 mpi-send-rcv.f -o mpi-send-rcv
+\end{verbatim}
+\color{black}
+
+Una vez compilado se corre con el comando siguiente:
+\color{blue}
+\begin{verbatim}
+mpirun -n 4  mpi-send-rcv
+\end{verbatim}
+\color{black}
+y produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+ Datos enviados desde proceso 0 con etiqueta 11 = 11          11          11
+ Datos enviados desde proceso 0 con etiqueta 12 = 12          12          12
+ Datos recibidos en proceso 1 con etiqueta 11 = 11          11          11
+ Datos recibidos en proceso 1 con etiqueta 12 = 12          12          12
+\end{verbatim}
+\color{black}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Julia
+
+
+\section{Uso de MPI en Julia en el LNS}
+
+El lenguaje Julia~\cite{julia} es relativamente reciente ya que data de 2012. Julia es un lenguaje de software abierto del tipo "compilado en el momento" que est\'a orientado al c\'omputo cient\'ifico. Tiene la ventaja de ser muy simple de aprender y por lo tanto f\'acil para usar en pruebas de desarrollo de software con una velocidad de ejecuci\'on que es casi tan r\'apida como C. Otra ventaja de Julia es que, al igual que Python, cuenta con una gran comunidad de desarrolladores. Una desventaja obvia es que por su corta edad se encuentra en una fase de menor madurez con respecto a los dem\'as lenguajes usados en este documento. Para aprender Julia existen bastantes recursos libres, ver por ejemplo~\cite{julialearn}.
+
+Como prerrequisito para usar MPI con Julia en el LNS debemos cargar los m\'odulos siguientes:
+\color{blue}
+\begin{verbatim}
+module load tools/openmpi/intel/1.8.4
+module load applications/julia/0.4.6
+\end{verbatim}
+\color{black}
+de modo que al ejecutar el comando
+\color{blue}
+\begin{verbatim}
+module list
+\end{verbatim}
+\color{black}
+obtenemos lo siguiente:
+\color{brown}
+\begin{verbatim}
+Currently Loaded Modulefiles:
+  1) tools/openmpi/intel/1.8.4   2) applications/julia/0.4.6
+\end{verbatim}
+\color{black}
+
+\subsection{Ejemplo b\'asico de uso de MPI en Julia en el LNS}
+
+El primer ejemplo se llama mpi-simple.jl y se muestra en el Listado~\ref{simple-julia}.
+\begin{lstlisting}[float,floatplacement=H,label=simple-julia,caption=Listado del programa  \texttt{mpi-simple.jl} en Julia]
+using MPI
+MPI.Init()
+comm = MPI.COMM_WORLD
+const rank = MPI.Comm_rank(comm)
+const size = MPI.Comm_size(comm)
+a=rank
+print("a=$a en proceso $rank de un total de $size\n" )
+MPI.Finalize()
+\end{lstlisting}
+
+
+Este c\'odigo se corre con el comando
+\color{blue}
+\begin{verbatim}
+mpirun -n 4 julia mpi-simple.jl 
+\end{verbatim}
+\color{black}
+y produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+a=3 en proceso 3 de un total de 4
+a=0 en proceso 0 de un total de 4
+a=1 en proceso 1 de un total de 4
+a=2 en proceso 2 de un total de 4
+\end{verbatim}
+\color{black}
+
+
+\subsection{Ejemplo de uso de la funci\'on $reduce$ de MPI en Julia en el LNS}
+
+El segundo ejemplo en Julia ilustra el uso de la funci\'on $reduce$. El c\'odigo respectivo de llama  \texttt{mpi-reduce.jl} y se muestra en Listado~\ref{reduce-julia}.
+\begin{lstlisting}[float,floatplacement=H,label=reduce-julia,caption=Listado del programa  \texttt{mpi-reduce.jl} en Julia]
+using MPI
+MPI.Init()
+comm = MPI.COMM_WORLD
+const rank = MPI.Comm_rank(comm)
+const size = MPI.Comm_size(comm)
+a=rank
+print("a = $rank en proceso $rank de un total de $size\n")
+Sum = MPI.Reduce(a, MPI.SUM, 0, comm)
+if rank == 0
+ print("La suma = $Sum en el proceso $rank \n",);
+end
+MPI.Finalize() 
+\end{lstlisting}
+
+
+Este c\'odigo se corre con el comando
+\color{blue}
+\begin{verbatim}
+mpirun -n 4 julia mpi-reduce.jl
+\end{verbatim}
+\color{black}
+y produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+a = 2 en proceso 2 de un total de 4
+a = 0 en proceso 0 de un total de 4
+a = 3 en proceso 3 de un total de 4
+a = 1 en proceso 1 de un total de 4
+La suma = 6 en el proceso 0 
+\end{verbatim}
+\color{black}
+
+
+\subsection{Ejemplo de uso de las funciones $send$ y $receive$ de MPI en Julia en el LNS}
+
+El tercer ejemplo en Julia muestra el uso de las funciones $send$ y $receive$. El c\'odigo respectivo se llama  \texttt{mpi-send-rcv.jl} y se muestra en el Listado~\ref{send-julia}.
+\begin{lstlisting}[float,floatplacement=H,label=send-julia,caption=Listado del programa \texttt{mpi-send-rcv.jl} en Julia]
+using MPI
+MPI.Init()
+comm = MPI.COMM_WORLD
+const rank = MPI.Comm_rank(comm)
+const size = MPI.Comm_size(comm)
+if rank == 0
+ data11 = ones(3)*1
+    data12 = ones(3)*2
+    MPI.Send(data11,  1, 11, comm)
+    MPI.Send(data12,  1, 12, comm)
+elseif rank == 1
+    data_recibida11 =zeros(3)
+    data_recibida12 =zeros(3)
+    MPI.Irecv!(data_recibida11, 0, 11, comm)
+    MPI.Irecv!(data_recibida12, 0, 12, comm)  
+end
+MPI.Barrier(comm)
+if rank == 1
+println("En proceso ",rank,"  data_recibida11 =",data_recibida11)
+println("En proceso ",rank,"  data_recibida12 =",data_recibida12)
+end
+MPI.Finalize() 
+\end{lstlisting}
+
+
+Este c\'odigo se corre con el comando
+\color{blue}
+\begin{verbatim}
+mpirun -n 4 julia mpi-send-rcv.jl
+\end{verbatim}
+\color{black}
+y produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+En proceso 1  data_recibida11 =[1.0,1.0,1.0]
+En proceso 1  data_recibida12 =[2.0,2.0,2.0]
+\end{verbatim}
+\color{black}
+
+N\'otese que si se comenta la l\'inea \texttt{MPI.Barrier(comm)} se pierde la sincronizaci\'on y se incurre en errores.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Python
+
+\section{Uso de MPI en Python en el LNS}
+
+Aunque Python es m\'as lento que los lenguajes anteriores, tiene la ventaja de que existe una gran cantidad de c\'odigo libre para su aplicaci\'on en casi todas las \'areas del conocimiento, con el atenuante adicional de que est\'an surgiendo paquetes que permiten acelerar la ejecuci\'on de Python, como por ejemplo Numba~\cite{numba}, que permite compilar en el momento el c\'odigo de las subrutinas que el usuario seleccione. 
+Otra ventaja de Python es la rapidez con que se puede programar un sistema de prueba que eventualmente se puede reescribir en C o en Fortran una vez que se ha depurado y optimizado.
+
+
+
+Como prerrequisito para usar MPI con Pyjthon en el LNS debemos cargar los m\'odulos siguientes:
+\color{blue}
+\begin{verbatim}
+module load tools/intel/impi/5.0.2.044
+module load applications/anaconda/3.19.1
+\end{verbatim}
+\color{black}
+de modo que al ejecutar el comando
+\color{blue}
+\begin{verbatim}
+module list
+\end{verbatim}
+\color{black}
+obtenemos lo siguiente:
+\color{brown}
+\begin{verbatim}
+Currently Loaded Modulefiles:
+  1) tools/intel/impi/5.0.2.044     
+  2) applications/anaconda/3.19.1
+\end{verbatim}
+\color{black}
+
+El m\'odulo de Python que contiene la implementaci\'on de MPI se llama  \texttt{mpi4py}~\cite{mpi4py} y se instala en el cl\'uster del LNS al  cargar  el m\'odulo  $applications/anaconda/3.19.1$.
+
+\subsection{Ejemplo b\'asico de uso de MPI en Python en el LNS}
+
+
+El primer ejemplo se llama mpi-simple.py y se muestra en el  Listado~\ref{simple-python}.
+\small
+\begin{lstlisting}[float,floatplacement=H,label=simple-python,caption=Listado del programa  \texttt{mpi-simple.py} en Python]
+from mpi4py import MPI;import socket
+comm = MPI.COMM_WORLD
+size = MPI.COMM_WORLD.Get_size()
+rank = comm.Get_rank()
+host=socket.gethostname()
+a=rank
+for i in range(size):
+   if i==rank:
+       print("a=%d en proceso %d de %d en %s"%(a,rank, size,host))
+MPI.Finalize()
+\end{lstlisting}
+
+
+Este c\'odigo se corre con el comando
+\color{blue}
+\begin{verbatim}
+mpirun -n 4 python mpi-simple.py
+\end{verbatim}
+\color{black}
+y produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+a=0 en proceso 0 de 4 en master1.lns.buap.mx
+a=2 en proceso 2 de 4 en master1.lns.buap.mx
+a=3 en proceso 3 de 4 en master1.lns.buap.mx
+a=1 en proceso 1 de 4 en master1.lns.buap.mx
+\end{verbatim}
+\color{black}
+
+
+\subsection{Ejemplo de uso de la funci\'on $reduce$ de MPI en Python en el LNS}
+El segundo ejemplo en Python ilustra el uso de la funci\'on $reduce$. El c\'odigo respectivo de llama  \texttt{mpi-reduce.py} y se muestra en el Listado~\ref{reduce-python}.
+\begin{lstlisting}[label=reduce-python,caption=Listado del programa  \texttt{mpi-reduce.py} en Python]
+from mpi4py import MPI;import numpy ;import random
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+a = random.randint(0,3)
+A=numpy.ones(3)*random.randint(0,3)
+print("En proceso %d a = %s A= %s" % (rank,a,A))
+sum_a = comm.reduce(a, op=MPI.SUM, root =0)
+sum_A = comm.reduce(A, op=MPI.SUM, root =0)
+if rank == 0:
+    print("La suma de a es %s y la de A es %s" % (sum_a,sum_A))
+MPI.Finalize()
+\end{lstlisting}
+
+
+Este c\'odigo se corre con el comando
+\color{blue}
+\begin{verbatim}
+mpirun -n 4 python mpi_reduce.py
+\end{verbatim}
+\color{black}
+y produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+En proceso 1 a = 0 A= [ 1.  1.  1.]
+En proceso 0 a = 3 A= [ 1.  1.  1.]
+En proceso 3 a = 3 A= [ 0.  0.  0.]
+En proceso 2 a = 3 A= [ 3.  3.  3.]
+La reduccion de a es 9 y la de A es [ 5.  5.  5.]
+\end{verbatim}
+\color{black}
+
+\subsection{Ejemplo de uso de las funciones $send$ y $receive$ de MPI en Python en el LNS}
+
+
+El tercer ejemplo en Python muestra el uso de las funciones $send$ y $receive$. El c\'odigo respectivo se llama  \texttt{mpi-send-rcv.py} y se muestra en el Listado~\ref{send-python}
+\begin{lstlisting}[float,floatplacement=H,label=send-python,caption=Listado del programa \texttt{mpi-send-rcv.py} en Python]
+from mpi4py import MPI; import numpy as np ; import random
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+if rank == 0:
+   data11 = np.ones(3)*11
+   data12 = np.ones(3)*12
+   comm.send(data11, dest=1, tag=11)
+   comm.send(data12, dest=1, tag=12)
+elif rank == 1:
+   data11_r = np.zeros(3)
+   data12_r = np.zeros(3)
+   data11_r = comm.recv(source=0, tag=11)
+   data12_r = comm.recv(source=0, tag=12)
+   print("En proceso %d, data11_recibido =%s"%(rank, data11_r))
+   print("En proceso %d, data12_recibido =%s"%(rank, data12_r))
+MPI.Finalize()
+\end{lstlisting}
+
+
+Este c\'odigo se corre con el comando
+\color{blue}
+\begin{verbatim}
+mpirun -n 4 python mpi-send-rcv.py
+\end{verbatim}
+\color{black}
+y produce como resultado lo siguiente:
+\color{brown}
+\begin{verbatim}
+En proceso 1, data11_recibido =[ 11.  11.  11.]
+En proceso 1, data12_recibido =[ 12.  12.  12.]
+\end{verbatim}
+\color{black}
+
+
+
+\section*{Bibliograf\'ia}
+\begin{thebibliography}{9}
+\bibitem{mpi}http://dl.acm.org/citation.cfm?id=898758
+\bibitem{openmp}http://dl.acm.org/citation.cfm?id=898758
+
+\bibitem{openmpvsmpi} http://pawangh.blogspot.mx/2014/05/mpi-vs-openmp.html
+\bibitem{slurm} http://www.ceci-hpc.be/slurm\_tutorial.html
+\bibitem{slurm1} https://www.rc.colorado.edu/support/user-guide/batch-queueing.html
+\bibitem{github} https://github.com/lvillasen/TutorialMPI
+
+\bibitem{tipos-fortran}http://mpi-forum.org/docs/mpi-2.2/mpi22-report/node353.htm
+\bibitem{julia} http://julialang.org/
+\bibitem{julialearn} http://julialang.org/learning/
+\bibitem{numba} http://numba.pydata.org/
+\bibitem{mpi4py} https://pythonhosted.org/mpi4py/apiref/index.html
+
+\end{thebibliography}
+
+\end{document}
+
+
