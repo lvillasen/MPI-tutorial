@@ -573,7 +573,7 @@ Como prerrequisito para usar MPI con Fortran en el LNS debemos cargar los m\'odu
 \color{blue}
 \begin{verbatim}
 module load compilers/intel/parallel_studio_xe_2015/15.0.1
-module load tools/openmpi/intel/1.8.4
+module tools/intel/impi/5.0.2.044
 \end{verbatim}
 \color{black}
 Es importante no tener cargado ning\'un otro m\'odulo de openmp que pueda interferir con estas librer\'ias, por ejemplo asegurarse que no est\'e cargado el m\'odulo 
@@ -671,7 +671,7 @@ A continuaci\'on mostramos un ejemplo del uso de la funci\'on $reduce$ en Fortra
      & MPI_SUM,0,MPI_COMM_WORLD,ierr)
        if (rank .eq. 0) then
        write(*,20) 'La suma de a es ',a_sum
-   20  Format(1x,A20,2x,I2)
+   20  Format(1x,A20,2x,I5)
        endif
        call MPI_FINALIZE(ierr)
        end
@@ -790,7 +790,7 @@ El lenguaje Julia~\cite{julia} es relativamente reciente ya que data de 2012. Ju
 Como prerrequisito para usar MPI con Julia en el LNS debemos cargar los m\'odulos siguientes:
 \color{blue}
 \begin{verbatim}
-module load tools/openmpi/intel/1.8.4
+module load tools/intel/impi/5.0.2.044
 module load applications/julia/0.4.6
 \end{verbatim}
 \color{black}
@@ -804,9 +804,19 @@ obtenemos lo siguiente:
 \color{brown}
 \begin{verbatim}
 Currently Loaded Modulefiles:
-  1) tools/openmpi/intel/1.8.4   2) applications/julia/0.4.6
+  1) tools/intel/impi/5.0.2.044   2) applications/julia/0.4.6
 \end{verbatim}
 \color{black}
+
+Para agregar el paquete de MPI a Julia basta con teclear lo siguiente:
+\color{blue}
+\begin{verbatim}
+julia
+Pkg.add("MPI")
+\end{verbatim}
+\color{black}
+Este procedimiento se hace solo una vez pero es importante hacerlo  cuando est\'e cargado el m\'odulo \texttt{tools/intel/impi/5.0.2.044}.
+
 
 \subsection{Ejemplo b\'asico de uso de MPI en Julia en el LNS}
 
