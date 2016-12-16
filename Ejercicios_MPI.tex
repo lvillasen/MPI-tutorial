@@ -1,0 +1,272 @@
+\documentclass[letter]{jpconf}
+
+\usepackage{xcolor}
+
+
+    
+    
+    
+\usepackage{listings}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{caption}
+\DeclareCaptionFont{white}{\color{white}}
+\DeclareCaptionFormat{listing}{%
+\parbox{\textwidth}{\colorbox{gray}{\parbox{\textwidth}{#1#2#3}}\vskip-4pt}}
+\captionsetup[lstlisting]{format=listing,labelfont=white,textfont=white}
+\lstset{frame=lrb,xleftmargin=\fboxsep,xrightmargin=-\fboxsep}
+
+\renewcommand{\abstractname}{Resumen}
+\renewcommand{\lstlistingname}{Listado}
+\renewcommand{\tablename}{Tabla}
+
+\makeatletter
+\newcommand{\verbatimfont}[1]{\def\verbatim@font{#1}}%
+\makeatother
+\usepackage{titlesec}
+
+\titleformat{\chapter}
+       {\normalfont\fontfamily{phv}\fontsize{18}{21}\bfseries}{\thechapter}{1em}{}
+
+\titleformat{\section}
+       {\normalfont\fontfamily{phv}\fontsize{14}{19}\bfseries}{\thesection}{1em}{}
+
+\titleformat{\subsection}
+       {\normalfont\fontfamily{phv}\fontsize{12}{17}\bfseries\itshape}{\thesubsection}{1em}{}
+
+
+\begin{document}
+ \vspace*{-45mm}
+\title{Ejercicios sobre el uso de MPI en el Laboratorio Nacional de Superc\'omputo del Sureste de M\'exico}
+\author{Luis M. Villase\~nor Cendejas}
+
+\address{Benem\'erita Universidad Aut\'onoma de Puebla, Puebla, Mexico}
+
+\ead{lvillasen@gmail.com}
+\author{\textbf{2 de diciembre de 2016}}
+\section{Introducci\'on}
+\vspace{1\baselineskip}
+
+Este documento contiene una lista de ejercicios sobre MPI~\cite{mpi}. Estos ejercicios se proponen para complementar el tutorial sobre MPI que est\'a disponible en~\cite{github,LNS}.
+De acuerdo con este tutorial, que explica el uso b\'asico de MPI en C, Fortran, Julia y Python, el lenguaje de programaci\'on para hacer estos ejercicios puede ser cualquiera de estos cuatro.
+
+\section{Ejercicios}
+\vspace{1\baselineskip}
+
+\begin{itemize} 
+\item 
+
+Elaborar un programa  usando MPI para hacer el producto escalar de dos vectores de forma paralela. El producto escalar de dos vectores se obtiene haciendo la suma de los productos entre los elementos de los vectores.
+
+\item 
+
+Elaborar un programa  usando MPI para hacer  la multiplicación paralela de una matriz (NxN) con un vector (Nx1) para obtener un vector (Nx1).
+
+\item 
+
+Elaborar un programa  usando MPI para hacer  la multiplicación paralela de una matriz (LxM) por una matriz (MxN) para obtener una matriz (LxN).
+
+\item 
+
+Elaborar un programa usando MPI  que implemente un "ping-pong", en el que
+el proceso ra\'iz env\'ia un n\'umero a un proceso  y este \'ultimo lo devuelve inmediatamente al proceso ra\'iz aumentado en uno.
+
+\item 
+
+Elaborar un programa usando MPI  que implemente el juego de "papa caliente", en el que
+un proceso aleatorio env\'ia un n\'umero a otro proceso escogido al azar,  y este \'ultimo a su vez lo manda a otro proceso, 
+aumentado en uno y tambi\'en escogido al azar. Cuente el n\'umero de env\'ios antes de que el n\'umero regrese al proceso inicial.
+
+
+\item 
+
+
+Elaborar un programa usando MPI  que determine si el
+n\'umero de unos en una secuencia binaria grande, almacenada en un arreglo, es par o
+impar.
+
+
+\item 
+
+
+Elaborar un programa usando MPI  para contar los n\'umeros primos menores que un n\'umero dado.
+Como gu\'ia, en el Listado~\ref{primo_py}  se muestra un programa secuencial en Python, 
+y en el Listado~\ref{primo_jl}  se muestra otro programa secuencial en Julia, para este prop\'osito.
+
+
+\item 
+
+
+Elaborar un programa usando MPI  para  paralelizar el fractal de Mandelbrot~\cite{mandel_ref}.  En el Listado~\ref{mandel_jl} se muestra un programa secuencial 
+escrito en Julia para este prop\'osito.  En la Figura~\ref{mandel_fig} se muestra el fractal de Mandelbrot obtenido con este programa. Puede usar el lenguaje de su preferencia.
+
+
+
+\item 
+
+
+Elaborar un programa usando MPI  para  implementar el "Juego de la Vida"~\cite{vida_ref}.
+Como gu\'ia,  el Listado~\ref{vida_jl}  muestra un programa secuencial escrito en Julia para este prop\'osito. Este c\'odigo produce la Figura~\ref{vida_fig}.
+Puede usar el lenguaje de su preferencia.
+
+\item 
+
+Elaborar un programa usando MPI  para procesar una malla bidimensional X de
+$1000 \times 1000$ puntos, actualiz\'andola de acuerdo al siguiente esquema iterativo:
+\newline
+
+\centerline
+{$X^{t+1}_{i,j}$ = $(X_{i + 1, j + 1}^t + X^t_{i-1,j-1} + X^t_{i+1,j-1} + X^t_{i-1,j+1})/4$}
+
+\vspace{1\baselineskip}
+
+Para resolver el problema en los bordes de la malla considere condiciones peri\'odicas. Suponga que los valores iniciales son $X_i=10$ en los bordes de la malla y $X_i=0$  
+en los puntos interiores. Establecer un criterio de convergencia. 
+
+\end{itemize} 
+
+
+\begin{lstlisting}[float,floatplacement=H,label=primo_py,caption=Programa secuencial  para calcular n\'umeros primos en Python.]
+import numpy as np
+N1 =800000
+N2 = 850000
+if (N1%2 == 0):
+    N1+=1
+if (N2%2 == 0):
+    N2-=1
+n= N1
+Num_primos=0
+while (n<=N2):
+    n1=3
+    p=1
+    while (n1<np.sqrt(n) and p ==1):
+        if (n%n1 == 0):
+            p=0
+        n1+=2
+    if (p==1):
+        Num_primos+=1
+    n+=2
+print "Num_primos=",Num_primos
+ \end{lstlisting}
+
+
+\begin{lstlisting}[float,floatplacement=H,label=primo_jl,caption=Programa secuencial  para calcular n\'umeros primos en Julia.]
+N1 =8000000
+N2 = 8500000
+if N1%2 == 0; N1+=1;end
+if N2%2 == 0; N2-=1;end
+n= N1
+Num_primos=0
+while n<=N2
+    n1=3
+    p=1
+    while n1<sqrt(n) && p ==1
+        if n%n1 == 0;p=0; end
+        n1+=2
+    end
+    if p==1;Num_primos+=1 ;end
+    n+=2
+end
+print("Num_primos=$Num_primos \t")
+ \end{lstlisting}
+ 
+ \begin{lstlisting}[float,floatplacement=H,label=mandel_jl,caption=Programa secuencial  para graficar el fractal de Mandelbrot en Julia.]
+ using PyCall
+@pyimport matplotlib.pyplot as plt
+const N=800
+function mandelbrot(x0,y0,side,L=30,R=3.)
+    m = zeros(N,N)
+    delta = side/N
+    for i=1:N, j=1:N
+        c = x0+delta*i+(y0+delta*j)*im
+        z, h = 0+0*im, 0
+        while (h<L) && (abs(z)<R)
+            z = z^2+c
+            h+=1
+        end
+        m[j,i]=h
+    end
+    return m
+end
+n=2.6
+m=mandelbrot(-n/1.5,-n/1.9, n)
+plt.imshow(m)
+plt.show()
+ \end{lstlisting}
+
+
+\begin{lstlisting}[float,floatplacement=H,label=vida_jl,caption=Programa secuencial del "Juego de la Vida" en Julia.]
+#Usage julia GameOfLife.py n n_iter m
+# n is the board size 
+# n_iter the initial number of iterations
+# m is 1 to plot the board or 0 for no graphical output 
+using PyCall
+@pyimport matplotlib.pyplot as plt
+const n = int(ARGS[1])
+n_iter = int(ARGS[2])
+const m = int(ARGS[3])
+function life_game(n,M,n_iter)
+    for k=1:n_iter
+        C = copy(M) # copy current life grid
+        for i=1:n, j=1:n
+            if (i==1) i_left=n else i_left=i-1 end
+            if(i==n) i_right=1; 
+            else i_right=i+1;end
+            if(j==1) j_down=n; else j_down=j-1;end
+            if(j==n) j_up=1; 
+            else j_up=j+1;end
+            count = C[i_left,j] + C[i_left,j_up] + C[i_left,j_down] +
+             C[i,j_down] + C[i,j_up] + C[i_right,j] + 
+             C[i_right,j_up] + C[i_right,j_down] 
+            if C[i, j]==1
+                if count < 2 || count > 3
+            M[i, j] = 0 # living cells with <2 or >3 neighbors die
+                end
+            elseif count == 3
+                M[i, j] = 1 # dead cells with 3 neighbors are born
+            end; end; end
+    return M
+end
+M0=rand(0:1,n,n) # Initialize with a random pattern
+M=life_game(n,M0,n_iter)
+print(sum(M)," live cells after ",n_iter," iterations\n")
+if m != 0
+    fig = plt.figure(figsize=(12,12))
+    plt.gray()
+    while m != 0
+        M1=abs(1-M)
+        plt.imshow(M1,  interpolation="none")
+        plt.title("Conway's Game of Life, $n_iter Iterations")
+        plt.pause(.01) 
+        #print(" k=",n_iter," live cells=",sum(M),"\n")
+        M=life_game(n,M,1) 
+        n_iter=n_iter+1; end; end
+\end{lstlisting}
+
+
+\begin{figure}
+\includegraphics[width=\linewidth]{/Users/luis/Dropbox/2016_Prod_Academica/Tutorial_MPI_LNS/mandel.png}
+  \caption{Gr\'afica del fractal de Mandelbrot obtenida con el programa mostrado en  el Listado~\ref{mandel_jl}.}
+  \label{mandel_fig}
+\end{figure}
+
+
+\begin{figure}
+\includegraphics[width=\linewidth]{/Users/luis/Dropbox/2016_Prod_Academica/Tutorial_MPI_LNS/vida.png}
+  \caption{Gr\'afica del "Juego de la Vida" obtenida con el programa mostrado en el Listado~\ref{vida_jl}.}
+  \label{vida_fig}
+\end{figure}
+
+\section*{Bibliograf\'ia}
+\begin{thebibliography}{9}
+\bibitem{mpi}http://dl.acm.org/citation.cfm?id=898758
+\bibitem{github} https://github.com/lvillasen/TutorialMPI
+\bibitem{LNS} http://www.lns.org.mx/node/131
+\bibitem{mandel_ref}https://en.wikipedia.org/wiki/Mandelbrot\_set
+\bibitem{vida_ref}https://en.wikipedia.org/wiki/Conway's\_Game\_of\_Life
+
+\end{thebibliography}
+
+\end{document}
+
+
